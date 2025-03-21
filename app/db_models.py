@@ -1,7 +1,8 @@
+from database import Base  # Import Base from database.py
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import declarative_base
-import datetime
-from app.database import Base  # Import Base from database.py
+import datetime 
+
 
 # Define the Member model
 class Member(Base):

@@ -2,6 +2,12 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app.db_models import Member, Base  # Import models
+from expiry_date import calculate_expiry
+from datetime import datetime
+
+start_date = datetime.today()
+expiry_date = calculate_expiry(start_date, "yearly")
+print("Membership expires on:", expiry_date)
 
 # Initialize FastAPI app
 app = FastAPI()
