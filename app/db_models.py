@@ -1,19 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy.orm import declarative_base
 import datetime
-
-# Database connection URL - Update with your actual PostgreSQL credentials
-DATABASE_URL = "postgresql://postgres:11230428018@localhost/gym_db"
-
-# Create database engine
-engine = create_engine(DATABASE_URL)
-
-# Create a session
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Base class for models
-Base = declarative_base()
+from app.database import Base  # Import Base from database.py
 
 # Define the Member model
 class Member(Base):
@@ -36,9 +24,3 @@ class Admin(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String, nullable=False)
-
-# Create tables in the database
-if __name__ == "__main__":
-    print("🚀 Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("✅ Tables created successfully!")
