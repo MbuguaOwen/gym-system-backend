@@ -1,0 +1,45 @@
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+from database import SessionLocal, engine
+from db_models import Member, Base  
+from fastapi.middleware.cors import CORSMiddleware
+from expiry_date import calculate_expiry
+from datetime import datetime
+
+# Initialize FastAPI
+app = FastAPI()
+
+# Ensure database tables are created
+Base.metadata.create_all(bind=engine)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"],  
+)
+
+# Dependency to get a new database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Create a new gym member
+@app.post("/members/")
+def create_member(name: str, email: str, phone_number: str, db: Session = Depends(get_db)):
+    new_member = Member(name=name, email=email, phone_number=phone_number, membership_end="2025-12-31")
+    db.add(new_member)
+    db.commit()  # ✅ Commit to save to DB
+    db.refresh(new_member)  # ✅ Refresh the object to get the ID
+
+    return {"message": "Member added!", "member": new_member}
+
+# Get all members
+@app.get("/members")
+def get_members(db: Session = Depends(get_db)):
+    return db.query(Member).all()

@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
-from app.db_models import Member, Base  # Import models
-from expiry_date import calculate_expiry
+from app.database import SessionLocal, engine  # ✅ Load database first
+from app.db_models import Member, Base
+
+from fastapi.middleware.cors import CORSMiddleware
+from app.expiry_date import calculate_expiry
 from datetime import datetime
 
 start_date = datetime.today()
@@ -15,6 +17,13 @@ app = FastAPI()
 # Ensure database tables are created
 Base.metadata.create_all(bind=engine)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ⛔️ This allows all origins (for dev). Change to your frontend URL in production.
+    allow_credentials=True,
+    allow_methods=["*"],  # ✅ Allow all HTTP methods (GET, POST, PUT, DELETE)
+    allow_headers=["*"],  # ✅ Allow all headers
+)
 # Root endpoint
 @app.get("/")
 def read_root():
@@ -38,11 +47,15 @@ def get_db():
 def create_member(name: str, email: str, phone_number: str, db: Session = Depends(get_db)):
     new_member = Member(name=name, email=email, phone_number=phone_number, membership_end="2025-12-31")
     db.add(new_member)
-    db.commit()
+    db.commit()  # ✅ Ensure changes are saved
     db.refresh(new_member)
-    return {"message": "Member added!", "member": new_member}
+    
+        # ✅ Return all members to check if it was added
+    members = db.query(Member).all()
+    return {"message": "Member added!", "all_members": members}
 
 # API Route to retrieve all members
 @app.get("/members")
 def get_members(db: Session = Depends(get_db)):
     return db.query(Member).all()
+
