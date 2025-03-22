@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine  # ✅ Load database first
 from app.db_models import Member, Base
-
+from app.schemas import MemberCreate, MemberResponse  # ✅ Import schemas
 from fastapi.middleware.cors import CORSMiddleware
 from app.expiry_date import calculate_expiry
 from datetime import datetime
@@ -42,17 +42,20 @@ def get_db():
     finally:
         db.close()
 
-# API Route to create a new gym member
-@app.post("/members/")
-def create_member(name: str, email: str, phone_number: str, db: Session = Depends(get_db)):
-    new_member = Member(name=name, email=email, phone_number=phone_number, membership_end="2025-12-31")
+# ✅ Corrected Swagger UI Post Request
+@app.post("/members/", response_model=MemberResponse)
+def create_member(member: MemberCreate, db: Session = Depends(get_db)):
+    new_member = Member(
+        name=member.name,
+        email=member.email,
+        phone_number=member.phone_number,
+        membership_end=member.membership_end or "2025-12-31"
+    )
     db.add(new_member)
-    db.commit()  # ✅ Ensure changes are saved
+    db.commit()
     db.refresh(new_member)
     
-        # ✅ Return all members to check if it was added
-    members = db.query(Member).all()
-    return {"message": "Member added!", "all_members": members}
+    return new_member  # ✅ Now returns correct response format
 
 # API Route to retrieve all members
 @app.get("/members")
