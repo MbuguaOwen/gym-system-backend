@@ -17,6 +17,15 @@ from app.db_models import Admin, Member
 
 from fastapi.middleware.cors import CORSMiddleware
 
+import secrets
+print(secrets.token_hex(32))
+
+
+DEBUG = os.getenv("DEBUG", "False") == "True"
+
+if DEBUG:
+    print("Running in DEBUG mode!")
+
 # Initialize FastAPI app
 app = FastAPI()
 
