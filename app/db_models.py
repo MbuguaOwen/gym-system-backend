@@ -1,5 +1,5 @@
 from app.database import Base  # ✅ Correct import
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Date, Boolean
 import datetime
 
 
@@ -12,8 +12,8 @@ class Member(Base):
     email = Column(String, unique=True, index=True)
     phone_number = Column(String, unique=True)
     fingerprint_id = Column(String, unique=True, nullable=True)  # To be added later
-    membership_start = Column(DateTime, default=datetime.datetime.utcnow)
-    membership_end = Column(DateTime, nullable=False)
+    membership_start = Column(Date, default=datetime.date.today)
+    membership_end = Column(Date, nullable=False)
     is_active = Column(Boolean, default=True)
 
 # Define the Admin model

@@ -71,6 +71,9 @@ class MemberSchema(BaseModel):
     name: str
     email: EmailStr  # Ensures valid email format
     phone: str
+    membership_start: datetime = None  # Optional, defaults to current time
+    membership_end: datetime = None  # Optional, defaults to 30 days from now
+    
 
 # ✅ Admin Signup/Login (Returns Token)
 @app.post("/admin-access")
@@ -95,12 +98,17 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
     existing_member = db.query(Member).filter(Member.phone_number == member_data.phone).first()
     if existing_member:
         raise HTTPException(status_code=400, detail="Phone number already exists. Use a different number.")
-
+     # Set current datetime as membership start and 30 days from now as membership end
+     
+    membership_start = datetime.utcnow()  
+    
+ 
     membership_end = datetime.utcnow() + timedelta(days=30)  # Default 30 days
     new_member = Member(
         name=member_data.name,
         email=member_data.email,
         phone_number=member_data.phone,
+        membership_start=membership_start,
         membership_end=membership_end,
         is_active=True
     )
@@ -112,14 +120,18 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
         "name": new_member.name,
         "email": new_member.email,
         "phone": new_member.phone_number,
-        "membership_end": new_member.membership_end.strftime("%Y-%m-%d %H:%M:%S")
+        "membership_start": new_member.membership_start.isoformat(),  # Ensure ISO format
+        "membership_end": new_member.membership_end.isoformat()  # Ensure ISO format
     }}
 
 # ✅ Get All Members (No Auth for Now)
 @app.get("/members")
 def get_members(db: Session = Depends(get_db)):
     members = db.query(Member).all()
-    return [{"id": m.id, "name": m.name, "email": m.email, "phone": m.phone_number} for m in members]
+    return [{"id": m.id, "name": m.name, "email": m.email, "phone": m.phone_number, "membership_start": m.membership_start.isoformat(),  # Ensure ISO format
+             "membership_end": m.membership_end.isoformat()
+
+} for m in members]
 
 # ✅ Delete Member
 @app.delete("/members/{member_id}")
