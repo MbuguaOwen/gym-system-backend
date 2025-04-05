@@ -73,7 +73,6 @@ class MemberSchema(BaseModel):
     phone: str
     membership_start: datetime = None  # Optional, defaults to current time
     membership_end: datetime = None  # Optional, defaults to 30 days from now
-    
 
 # ✅ Admin Signup/Login (Returns Token)
 @app.post("/admin-access")
@@ -98,11 +97,8 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
     existing_member = db.query(Member).filter(Member.phone_number == member_data.phone).first()
     if existing_member:
         raise HTTPException(status_code=400, detail="Phone number already exists. Use a different number.")
-     # Set current datetime as membership start and 30 days from now as membership end
-     
-    membership_start = datetime.utcnow()  
     
- 
+    membership_start = datetime.utcnow()
     membership_end = datetime.utcnow() + timedelta(days=30)  # Default 30 days
     new_member = Member(
         name=member_data.name,
@@ -127,11 +123,27 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
 # ✅ Get All Members (No Auth for Now)
 @app.get("/members")
 def get_members(db: Session = Depends(get_db)):
+    # Query members from the database
     members = db.query(Member).all()
-    return [{"id": m.id, "name": m.name, "email": m.email, "phone": m.phone_number, "membership_start": m.membership_start.isoformat(),  # Ensure ISO format
-             "membership_end": m.membership_end.isoformat()
 
-} for m in members]
+    # Separate members into active and expired based on membership_end
+    active_members = [m for m in members if m.membership_end > datetime.utcnow()]
+    expired_members = [m for m in members if m.membership_end <= datetime.utcnow()]
+
+    # Sort active members by membership_end date (ascending)
+    active_members.sort(key=lambda m: m.membership_end)
+
+    # Sort expired members by membership_end date (ascending)
+    expired_members.sort(key=lambda m: m.membership_end)
+
+    # Combine active and expired members into one list (active first)
+    sorted_members = active_members + expired_members
+
+    # Return members with the sorted list
+    return [{"id": m.id, "name": m.name, "email": m.email, "phone": m.phone_number, 
+             "membership_start": m.membership_start.isoformat(), 
+             "membership_end": m.membership_end.isoformat()} 
+            for m in sorted_members]
 
 # ✅ Delete Member
 @app.delete("/members/{member_id}")
