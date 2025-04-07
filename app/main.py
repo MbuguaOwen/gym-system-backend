@@ -1,25 +1,21 @@
 import sys
 import os
+from datetime import datetime, timedelta
+
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))  # Adds current directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))  # Adds backend
 
-print("Updated PYTHONPATH:", sys.path)  # Debugging
-
-from fastapi import FastAPI, Depends, HTTPException, Security
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
 
 from app.database import SessionLocal, engine, Base
 from app.db_models import Admin, Member
 
 from fastapi.middleware.cors import CORSMiddleware
-
 import secrets
-print(secrets.token_hex(32))
-
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
@@ -69,10 +65,10 @@ class AdminSchema(BaseModel):
 # ✅ Member Schema
 class MemberSchema(BaseModel):
     name: str
-    email: EmailStr  # Ensures valid email format
+    email: EmailStr
     phone: str
-    membership_start: datetime = None  # Optional, defaults to current time
-    membership_end: datetime = None  # Optional, defaults to 30 days from now
+    membership_start: datetime = None
+    membership_end: datetime = None
 
 # ✅ Admin Signup/Login (Returns Token)
 @app.post("/admin-access")
@@ -97,9 +93,10 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
     existing_member = db.query(Member).filter(Member.phone_number == member_data.phone).first()
     if existing_member:
         raise HTTPException(status_code=400, detail="Phone number already exists. Use a different number.")
-    
-    membership_start = datetime.utcnow()
-    membership_end = datetime.utcnow() + timedelta(days=30)  # Default 30 days
+
+    membership_start = member_data.membership_start or datetime.utcnow()
+    membership_end = member_data.membership_end or (membership_start + timedelta(days=30))
+
     new_member = Member(
         name=member_data.name,
         email=member_data.email,
@@ -116,34 +113,55 @@ def add_member(member_data: MemberSchema, db: Session = Depends(get_db)):
         "name": new_member.name,
         "email": new_member.email,
         "phone": new_member.phone_number,
-        "membership_start": new_member.membership_start.isoformat(),  # Ensure ISO format
-        "membership_end": new_member.membership_end.isoformat()  # Ensure ISO format
+        "membership_start": new_member.membership_start.isoformat(),
+        "membership_end": new_member.membership_end.isoformat()
     }}
 
-# ✅ Get All Members (No Auth for Now)
+# ✅ Get All Members
 @app.get("/members")
 def get_members(db: Session = Depends(get_db)):
-    # Query members from the database
     members = db.query(Member).all()
 
-    # Separate members into active and expired based on membership_end
     active_members = [m for m in members if m.membership_end > datetime.utcnow()]
     expired_members = [m for m in members if m.membership_end <= datetime.utcnow()]
 
-    # Sort active members by membership_end date (ascending)
     active_members.sort(key=lambda m: m.membership_end)
-
-    # Sort expired members by membership_end date (ascending)
     expired_members.sort(key=lambda m: m.membership_end)
 
-    # Combine active and expired members into one list (active first)
     sorted_members = active_members + expired_members
 
-    # Return members with the sorted list
-    return [{"id": m.id, "name": m.name, "email": m.email, "phone": m.phone_number, 
-             "membership_start": m.membership_start.isoformat(), 
-             "membership_end": m.membership_end.isoformat()} 
-            for m in sorted_members]
+    return [{
+        "id": m.id,
+        "name": m.name,
+        "email": m.email,
+        "phone": m.phone_number,
+        "membership_start": m.membership_start.isoformat(),
+        "membership_end": m.membership_end.isoformat()
+    } for m in sorted_members]
+
+# ✅ Update Member
+@app.put("/members/{member_id}")
+def update_member(member_id: int, member_data: MemberSchema, db: Session = Depends(get_db)):
+    member = db.query(Member).filter(Member.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    member.name = member_data.name
+    member.email = member_data.email
+    member.phone_number = member_data.phone
+    member.membership_start = member_data.membership_start or member.membership_start
+    member.membership_end = member_data.membership_end or (member.membership_start + timedelta(days=30))
+
+    db.commit()
+    db.refresh(member)
+    return {"message": "Member updated successfully", "member": {
+        "id": member.id,
+        "name": member.name,
+        "email": member.email,
+        "phone": member.phone_number,
+        "membership_start": member.membership_start.isoformat(),
+        "membership_end": member.membership_end.isoformat()
+    }}
 
 # ✅ Delete Member
 @app.delete("/members/{member_id}")
@@ -151,7 +169,7 @@ def delete_member(member_id: int, db: Session = Depends(get_db)):
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    
+
     db.delete(member)
     db.commit()
     return {"message": "Member deleted successfully"}
